@@ -1,0 +1,20 @@
+{
+  "fold": 0,
+  "malicious_client": "A",
+  "joined_at_round": 2,
+  "rounds": 4,
+  "method": "B_rollback_and_redo",
+  "from_round": 2,
+  "to_round": 4,
+  "model_before": "a8bac3c0890cb2ec72d6db0d7e254bff0672cb6c271b3f2f5298cbbe83e9b8f0",
+  "model_after": "afd247a6d0bfaeb3291282816c299070d16551dff36c223faceac9d18cffd6a5",
+  "asr_before_per_mille": 0,
+  "asr_after_per_mille": 83,
+  "clean_f1_before": 0.0,
+  "clean_f1_after": 0.23,
+  "duration_sec": 74,
+  "attacked_model": "C:\\Sawon\\LLM\\data\\unlearn\\fold0\\attacked\\round_4.pt",
+  "cleaned_model": "C:\\Sawon\\LLM\\data\\unlearn\\fold0\\methodB\\round_4.pt",
+  "asr_set": "C:\\Sawon\\LLM\\data\\unlearn\\fold0\\asr",
+  "heldout_set": "C:\\Sawon\\LLM\\data\\unlearn\\fold0\\heldout"
+}

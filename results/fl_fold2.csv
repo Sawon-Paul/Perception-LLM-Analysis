@@ -1,0 +1,15 @@
+arm,f1,map50,map50_95,n_boxes,n_images,precision,recall,round,weights
+start,0.14,0.0457,0.0286,68,675,0.2189,0.1029,0,C:\Sawon\LLM\weights\yolo11s_pothole.pt
+federated,0.1423,0.0531,0.027,68,675,0.2306,0.1029,1,C:\Sawon\LLM\data\fl\fold2\global\round_1.pt
+federated,0.1338,0.0498,0.0231,68,675,0.2154,0.097,2,C:\Sawon\LLM\data\fl\fold2\global\round_2.pt
+federated,0.1192,0.0437,0.0174,68,675,0.2247,0.0811,3,C:\Sawon\LLM\data\fl\fold2\global\round_3.pt
+federated,0.1061,0.0295,0.0109,68,675,0.1329,0.0882,4,C:\Sawon\LLM\data\fl\fold2\global\round_4.pt
+federated,0.1006,0.029,0.0104,68,675,0.1169,0.0882,5,C:\Sawon\LLM\data\fl\fold2\global\round_5.pt
+local_A,0.0978,0.0275,0.0099,68,675,0.1096,0.0882,5,C:\Sawon\LLM\data\fl\fold2\runs\local_A_r5\weights\last.pt
+local_B,0.1253,0.0459,0.0203,68,675,0.2091,0.0895,5,C:\Sawon\LLM\data\fl\fold2\runs\local_B_r5\weights\last.pt
+local_C,0.14,0.0457,0.0286,68,675,0.2189,0.1029,5,C:\Sawon\LLM\data\fl\fold2\runs\local_C_r5\weights\last.pt
+central,0.122,0.0494,0.0224,68,675,0.1978,0.0882,1,C:\Sawon\LLM\data\fl\fold2\runs\central_r1\weights\last.pt
+central,0.1054,0.0292,0.0105,68,675,0.1307,0.0882,2,C:\Sawon\LLM\data\fl\fold2\runs\central_r2\weights\last.pt
+central,0.0996,0.0276,0.0098,68,675,0.1144,0.0882,3,C:\Sawon\LLM\data\fl\fold2\runs\central_r3\weights\last.pt
+central,0.0978,0.0232,0.0081,68,675,0.1097,0.0882,4,C:\Sawon\LLM\data\fl\fold2\runs\central_r4\weights\last.pt
+central,0.0977,0.0231,0.0081,68,675,0.1094,0.0882,5,C:\Sawon\LLM\data\fl\fold2\runs\central_r5\weights\last.pt

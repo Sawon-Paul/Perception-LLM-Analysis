@@ -1,0 +1,8 @@
+asr,clean_f1,clean_recall,hash,model,paired_clean_recall,recall_drop,seconds,trigger_recall,weights
+0.1536,0.2579,0.2564,35d2e6bbc5d13a1806bf1d9425df48b336b720954d5544546746a6fd9eea1ae3,base (no training),0.3333,0.0512,,0.2821,weights\yolo11s_pothole_fold0_rdd.pt
+0.2032,0.2277,0.3077,ee324805548be406becc6b2350087bb4f51ffd7a498ab7414fcf0eff66a272c5,attacked round 1,0.3218,0.0654,,0.2564,C:\Sawon\LLM\data\unlearn\fold0\attacked\round_1.pt
+0.3749,0.1907,0.1795,486f01d25459578c644b68867c965752e1af2b21bf29d874983d154123e30c7c,attacked round 2,0.2051,0.0769,,0.1282,C:\Sawon\LLM\data\unlearn\fold0\attacked\round_2.pt
+0.2505,0.0714,0.1026,321b7d231dca972f4f8e59d1189f30133e095423273fe4b8d99cbc3704bfb8bd,attacked round 3,0.1026,0.0257,,0.0769,C:\Sawon\LLM\data\unlearn\fold0\attacked\round_3.pt
+,0.0,0.0,a8bac3c0890cb2ec72d6db0d7e254bff0672cb6c271b3f2f5298cbbe83e9b8f0,attacked round 4,0.0,0.0,,0.0,C:\Sawon\LLM\data\unlearn\fold0\attacked\round_4.pt
+0.0832,0.23,0.3077,2aba070df827a53bce32d8cbf9dad3ecde4ad8ad8441f40469be83d85fe079f2,method A (retrain),0.3077,0.0256,99.0,0.2821,C:\Sawon\LLM\data\unlearn\fold0\methodA\round_4.pt
+0.0832,0.23,0.3077,afd247a6d0bfaeb3291282816c299070d16551dff36c223faceac9d18cffd6a5,method B (rollback),0.3077,0.0256,74.6,0.2821,C:\Sawon\LLM\data\unlearn\fold0\methodB\round_4.pt
