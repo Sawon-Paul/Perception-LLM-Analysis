@@ -1,0 +1,82 @@
+# Four QBFT validators on a fixed subnet.
+#
+# The IPs are pinned because Besu's static-nodes.json parser rejects DNS names
+# in enode URLs — it needs literal IP addresses. Service names work for every
+# other kind of Docker networking, which makes this an easy trap.
+#
+# Only node 1 exposes RPC; the others are reachable inside the Docker network
+# only, which is what a consortium deployment looks like and keeps the
+# fault-tolerance test honest.
+networks:
+  besu_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+services:
+  besu-node1:
+    image: hyperledger/besu:latest
+    container_name: besu-node1
+    networks:
+      besu_net:
+        ipv4_address: 172.28.0.11
+    volumes:
+      - ./genesis.json:/genesis.json:ro
+      - ./nodes/node1/data:/data
+    ports: ["8545:8545"]
+    command: >
+      --data-path=/data --genesis-file=/genesis.json
+      --node-private-key-file=/data/key
+      --rpc-http-enabled --rpc-http-host=0.0.0.0 --rpc-http-port=8545
+      --rpc-http-api=ETH,NET,WEB3,QBFT,ADMIN,TXPOOL
+      --rpc-http-cors-origins=all --host-allowlist=*
+      --min-gas-price=0 --p2p-port=30303 --p2p-host=172.28.0.11
+
+  besu-node2:
+    image: hyperledger/besu:latest
+    container_name: besu-node2
+    networks:
+      besu_net:
+        ipv4_address: 172.28.0.12
+    volumes:
+      - ./genesis.json:/genesis.json:ro
+      - ./nodes/node2/data:/data
+    command: >
+      --data-path=/data --genesis-file=/genesis.json
+      --node-private-key-file=/data/key
+      --min-gas-price=0 --p2p-port=30303 --p2p-host=172.28.0.12
+      --host-allowlist=*
+    depends_on: [besu-node1]
+
+  besu-node3:
+    image: hyperledger/besu:latest
+    container_name: besu-node3
+    networks:
+      besu_net:
+        ipv4_address: 172.28.0.13
+    volumes:
+      - ./genesis.json:/genesis.json:ro
+      - ./nodes/node3/data:/data
+    command: >
+      --data-path=/data --genesis-file=/genesis.json
+      --node-private-key-file=/data/key
+      --min-gas-price=0 --p2p-port=30303 --p2p-host=172.28.0.13
+      --host-allowlist=*
+    depends_on: [besu-node1]
+
+  besu-node4:
+    image: hyperledger/besu:latest
+    container_name: besu-node4
+    networks:
+      besu_net:
+        ipv4_address: 172.28.0.14
+    volumes:
+      - ./genesis.json:/genesis.json:ro
+      - ./nodes/node4/data:/data
+    command: >
+      --data-path=/data --genesis-file=/genesis.json
+      --node-private-key-file=/data/key
+      --min-gas-price=0 --p2p-port=30303 --p2p-host=172.28.0.14
+      --host-allowlist=*
+    depends_on: [besu-node1]

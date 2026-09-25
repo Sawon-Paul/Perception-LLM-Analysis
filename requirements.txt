@@ -1,0 +1,20 @@
+# torch installed SEPARATELY first — see README step 2
+ultralytics>=8.3.0
+opencv-python-headless>=4.10.0
+numpy>=1.26,<2.2
+pandas>=2.2.0
+scikit-learn>=1.5.0
+matplotlib>=3.9.0
+requests>=2.32.0
+python-dotenv>=1.0.1
+tqdm>=4.66.0
+
+# Phase 1 — Qwen-plus via DashScope
+dashscope>=1.20.0
+
+# Phase 2 — Qwen2.5-VL-3B-Instruct, 4-bit
+transformers>=4.49.0
+accelerate>=1.4.0
+bitsandbytes>=0.45.0
+qwen-vl-utils>=0.0.10
+pillow>=10.4.0
