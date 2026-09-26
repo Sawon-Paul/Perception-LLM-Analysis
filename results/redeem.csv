@@ -1,0 +1,10 @@
+case,expected,outcome,as_designed
+honest redemption,accepted,accepted (gas 63664),True
+replay the same voucher,BadSignature,BadSignature(),True
+merchant inflates amount,BadSignature,BadSignature(),True
+merchant changes merchant,BadSignature,BadSignature(),True
+non-merchant submits,NotMerchant,NotMerchant(),True
+redeem into the bond,InsufficientFree,"InsufficientFree(free=11, needed=36)",True
+car-to-car transfer,TransfersDisabled,TransfersDisabled(),True
+approve a spender,ApprovalsDisabled,ApprovalsDisabled(),True
+explicit bond cash-out,BondNotRedeemable,BondNotRedeemable(),True

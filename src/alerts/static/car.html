@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Road Fault Alerts</title>
+<link rel="stylesheet" href="/static/leaflet.css">
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171b21; --line: #262c35; --text: #e8ecf1;
+    --muted: #8a94a3; --warn: #f5a524; --danger: #ef4444; --ok: #22c55e;
+    --info: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .app { display: grid; grid-template-columns: 1fr 320px; height: 100%; }
+  #map { height: 100%; background: #1c2128; }
+  aside { background: var(--panel); border-left: 1px solid var(--line);
+    display: flex; flex-direction: column; min-height: 0; }
+  header { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 15px; margin: 0 0 6px; font-weight: 600; }
+  .status { display: flex; gap: 8px; align-items: center; color: var(--muted);
+    font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--ok); } .dot.off { background: var(--danger); }
+  section { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin-bottom: 8px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  button, select { background: #222833; color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #3a4352; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: #1d222a; border-radius: 6px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 11px; }
+  #log { flex: 1; overflow-y: auto; padding: 8px 16px 16px; font-size: 12px; }
+  .ev { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .ev .t { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+  .banner { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; min-width: 280px; max-width: calc(100% - 32px); padding: 14px 20px;
+    border-radius: 10px; background: rgba(15,18,22,.92); border: 2px solid var(--warn);
+    text-align: center; display: none; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .banner.show { display: block; }
+  .banner.near { border-color: var(--danger); }
+  .banner .big { font-size: 22px; font-weight: 700; }
+  .banner .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .mapwrap { position: relative; height: 100%; }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="mapwrap">
+    <div id="map"></div>
+    <div class="banner" id="banner" role="alert" aria-live="assertive">
+      <div class="big" id="bannerBig"></div>
+      <div class="sub" id="bannerSub"></div>
+    </div>
+  </div>
+  <aside>
+    <header>
+      <h1>Road fault alerts</h1>
+      <div class="status"><span class="dot" id="dot"></span>
+        <span id="conn">connecting…</span></div>
+    </header>
+    <section>
+      <div class="label">Drive</div>
+      <div class="controls">
+        <button id="play">Start</button>
+        <select id="speed" aria-label="playback speed">
+          <option value="5">5×</option><option value="10" selected>10×</option>
+          <option value="30">30×</option><option value="60">60×</option>
+        </select>
+        <button id="restart">Restart</button>
+      </div>
+    </section>
+    <section>
+      <div class="stats">
+        <div class="stat"><b id="sAlerts">0</b><span>active faults</span></div>
+        <div class="stat"><b id="sWarned">0</b><span>warnings given</span></div>
+        <div class="stat"><b id="sProgress">0%</b><span>route driven</span></div>
+        <div class="stat"><b id="sLatency">–</b><span>last chain→screen</span></div>
+      </div>
+    </section>
+    <div class="label" style="padding:12px 16px 0">Events</div>
+    <div id="log"></div>
+  </aside>
+</div>
+<script src="/static/leaflet.js"></script>
+<script>
+const ALERT_M = 300, NEAR_M = 80;
+const params = new URLSearchParams(location.search);
+const TRACE = params.get("trace") || "PVS 1";
+const map = L.map("map", { zoomControl: true }).setView([-27.7178, -51.0989], 15);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
+
+const faults = new Map();          // id -> {data, marker}
+const warned = new Set();
+let route = [], idx = 0, timer = null, carMarker = null, trail = null;
+let lastDist = new Map(), active = null;
+
+const $ = id => document.getElementById(id);
+function log(msg) {
+  const d = document.createElement("div"); d.className = "ev";
+  const t = new Date().toLocaleTimeString();
+  d.innerHTML = `<span class="t">${t}</span>${msg}`;
+  $("log").prepend(d);
+}
+function hav(a, b) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b[0]-a[0])*r, dLon = (b[1]-a[1])*r;
+  const s = Math.sin(dLat/2)**2 + Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function colour(f) { return f.state === "RepairClaimed" ? "#f5a524" : "#ef4444"; }
+function upsert(f) {
+  const old = faults.get(f.id);
+  if (old) old.marker.remove();
+  const m = L.circleMarker([f.lat, f.lon], { radius: 9, color: colour(f),
+      weight: 3, fillOpacity: .35 })
+    .bindTooltip(`#${f.id} ${f.type} · severity ${f.severity} · ${f.state}`)
+    .addTo(map);
+  faults.set(f.id, { data: f, marker: m });
+}
+function remove(id) {
+  const old = faults.get(id);
+  if (old) { old.marker.remove(); faults.delete(id); }
+  if (active === id) hideBanner();
+}
+function refreshStats() {
+  $("sAlerts").textContent = faults.size;
+  $("sWarned").textContent = warned.size;
+  $("sProgress").textContent = route.length ? Math.round(100*idx/(route.length-1)) + "%" : "–";
+}
+
+// ------------------------------------------------------------- chain feed
+function connect() {
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onopen = () => { $("dot").className = "dot on"; $("conn").textContent = "live · read-only gateway"; };
+  ws.onclose = () => { $("dot").className = "dot off"; $("conn").textContent = "disconnected, retrying…";
+    setTimeout(connect, 2000); };
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === "snapshot") {
+      const ids = new Set(m.alerts.map(a => a.id));
+      for (const id of [...faults.keys()]) if (!ids.has(id)) remove(id);
+      m.alerts.forEach(upsert);
+    } else if (m.type === "change") {
+      const f = m.fault;
+      let msg = `fault #${f.id} ${f.type}: <b>${m.from} → ${m.to}</b>`;
+      if (m.latency_s !== undefined) {
+        msg += ` <span style="color:var(--info)">(${m.latency_s.toFixed(1)} s after the block)</span>`;
+        $("sLatency").textContent = m.latency_s.toFixed(1) + " s";
+      }
+      log(msg);
+      if (m.to === "Confirmed" || m.to === "RepairClaimed") upsert(f); else remove(f.id);
+    }
+    refreshStats();
+  };
+}
+
+// ------------------------------------------------------------------- drive
+function showBanner(f, d) {
+  active = f.id;
+  const b = $("banner");
+  b.className = "banner show" + (d < NEAR_M ? " near" : "");
+  const what = f.type.charAt(0).toUpperCase() + f.type.slice(1);
+  $("bannerBig").textContent = `${what} ahead · ${Math.round(d)} m`;
+  $("bannerSub").textContent = f.state === "RepairClaimed"
+    ? "Repair reported, not yet verified — slow down"
+    : `Confirmed on chain by ${f.contributors} vehicles · severity ${f.severity}`;
+}
+function hideBanner() { active = null; $("banner").className = "banner"; }
+function tick() {
+  if (idx >= route.length - 1) { stop(); log("route finished"); return; }
+  idx++;
+  const p = route[idx];
+  carMarker.setLatLng(p);
+  trail.addLatLng(p);
+  if (idx % 5 === 0) map.panTo(p, { animate: true });
+  let best = null;
+  for (const { data: f } of faults.values()) {
+    const d = hav(p, [f.lat, f.lon]);
+    const prev = lastDist.get(f.id);
+    lastDist.set(f.id, d);
+    const approaching = prev === undefined || d < prev + 1;
+    if (d <= ALERT_M && approaching && (!best || d < best.d)) best = { f, d };
+  }
+  if (best) {
+    if (!warned.has(best.f.id)) {
+      warned.add(best.f.id);
+      log(`warned about fault #${best.f.id} at ${Math.round(best.d)} m`);
+    }
+    showBanner(best.f, best.d);
+  } else hideBanner();
+  refreshStats();
+}
+function start() {
+  if (!route.length) return;
+  const ms = 2000 / Number($("speed").value);
+  clearInterval(timer); timer = setInterval(tick, ms);
+  $("play").textContent = "Pause";
+}
+function stop() { clearInterval(timer); timer = null; $("play").textContent = "Start"; }
+$("play").onclick = () => timer ? stop() : start();
+$("speed").onchange = () => { if (timer) start(); };
+$("restart").onclick = () => {
+  stop(); idx = 0; lastDist.clear(); warned.clear(); hideBanner();
+  trail.setLatLngs([route[0]]); carMarker.setLatLng(route[0]); refreshStats();
+};
+
+fetch(`/api/route?trace=${encodeURIComponent(TRACE)}`).then(r => r.json()).then(j => {
+  route = j.points;
+  if (!route.length) { log(`no route found for ${TRACE}`); return; }
+  carMarker = L.circleMarker(route[0], { radius: 8, color: "#60a5fa", weight: 3,
+    fillColor: "#60a5fa", fillOpacity: .9 }).addTo(map).bindTooltip("your car");
+  trail = L.polyline([route[0]], { color: "#60a5fa", weight: 3, opacity: .6 }).addTo(map);
+  L.polyline(route, { color: "#8a94a3", weight: 2, opacity: .35, dashArray: "4 6" }).addTo(map);
+  map.fitBounds(L.latLngBounds(route), { padding: [30, 30] });
+  log(`loaded ${TRACE}: ${route.length} points`);
+  refreshStats();
+});
+connect();
+</script>
+</body>
+</html>

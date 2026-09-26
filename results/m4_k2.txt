@@ -1,0 +1,37 @@
+k_confirm=2  match_radius=15m  interleave=progress
+
+  car 0: PVS 1       30 detections from _p2_standalone_7b  free points 0
+  car 1: PVS 4       22 detections from _p2_standalone_7b  free points 0
+  car 2: PVS 7       13 detections from _p2_standalone_7b  free points 0
+
+65 detections queued
+
+  50/65  15 reports, 1 confirms, 34 refused   31s
+  65/65  15 reports, 1 confirms, 49 refused   31s
+
+contract refusals
+     39  InsufficientFree
+     10  OwnerAlreadyContributed
+
+29 faults on chain
+  Expired        14
+  Pending        14
+  Confirmed      1
+
+car points at the end (stake stays locked until a fault closes)
+  car 0 PVS 1    balance 28  locked 25  free 0
+  car 1 PVS 4    balance 25  locked 25  free 0
+  car 2 PVS 7    balance 30  locked 30  free 0
+
+driving fault 20 through repair
+  claimRepair  gas 38807  -> RepairClaimed
+  checkBack (damage gone) by car 0  gas 76108  -> RepairClaimed
+  checkBack (damage gone) by car 1  gas 76108  -> RepairClaimed
+  checkBack (damage gone) by car 2  gas 116135  -> Closed
+
+  15 reports, 1 confirms, 49 refused (of 65 detections)
+  report   gas median 234552
+  confirm  gas median 392948
+  latency  median 1.99s  min 0.73s  max 2.03s
+
+-> C:\Sawon\LLM\results\car_transactions.csv

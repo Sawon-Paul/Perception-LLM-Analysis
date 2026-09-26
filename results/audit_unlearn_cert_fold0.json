@@ -10,12 +10,12 @@
     {
       "check": "ASR re-measured",
       "passed": true,
-      "detail": "auditor 0.590 vs claimed 0.590"
+      "detail": "auditor 0.083 vs claimed 0.083"
     },
     {
       "check": "clean F1 re-measured",
       "passed": true,
-      "detail": "auditor 0.281 vs claimed 0.281"
+      "detail": "auditor 0.230 vs claimed 0.230"
     }
   ]
 }

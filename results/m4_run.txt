@@ -1,0 +1,76 @@
+k_confirm=3  match_radius=15m  interleave=progress
+
+  car 0: PVS 1      958 detections from _p2_standalone_7b  free points 0
+  car 1: PVS 4      354 detections from _p2_standalone_7b  free points 0
+  car 2: PVS 7      735 detections from _p2_standalone_7b  free points 0
+
+2047 detections queued
+
+  50/2047  11 reports, 0 confirms, 39 refused   21s
+  100/2047  12 reports, 3 confirms, 85 refused   29s
+  150/2047  12 reports, 3 confirms, 135 refused   30s
+  200/2047  12 reports, 3 confirms, 185 refused   30s
+  250/2047  12 reports, 3 confirms, 235 refused   31s
+  300/2047  12 reports, 3 confirms, 285 refused   31s
+  350/2047  12 reports, 3 confirms, 335 refused   32s
+  400/2047  12 reports, 3 confirms, 385 refused   32s
+  450/2047  12 reports, 3 confirms, 435 refused   33s
+  500/2047  12 reports, 3 confirms, 485 refused   33s
+  550/2047  12 reports, 3 confirms, 535 refused   34s
+  600/2047  12 reports, 3 confirms, 585 refused   34s
+  650/2047  12 reports, 3 confirms, 635 refused   35s
+  700/2047  12 reports, 3 confirms, 685 refused   35s
+  750/2047  12 reports, 3 confirms, 735 refused   36s
+  800/2047  12 reports, 3 confirms, 785 refused   36s
+  850/2047  12 reports, 3 confirms, 835 refused   37s
+  900/2047  12 reports, 3 confirms, 885 refused   37s
+  950/2047  12 reports, 3 confirms, 935 refused   38s
+  1000/2047  12 reports, 3 confirms, 985 refused   38s
+  1050/2047  12 reports, 3 confirms, 1035 refused   39s
+  1100/2047  12 reports, 3 confirms, 1085 refused   39s
+  1150/2047  12 reports, 3 confirms, 1135 refused   40s
+  1200/2047  12 reports, 3 confirms, 1185 refused   40s
+  1250/2047  12 reports, 3 confirms, 1235 refused   40s
+  1300/2047  12 reports, 3 confirms, 1285 refused   41s
+  1350/2047  12 reports, 3 confirms, 1335 refused   41s
+  1400/2047  12 reports, 3 confirms, 1385 refused   42s
+  1450/2047  12 reports, 3 confirms, 1435 refused   42s
+  1500/2047  12 reports, 3 confirms, 1485 refused   43s
+  [1530] reading faults failed: {'code': -32603, 'message': 'Internal error'}
+  1550/2047  12 reports, 3 confirms, 1534 refused   43s
+  1600/2047  12 reports, 3 confirms, 1584 refused   44s
+  1650/2047  12 reports, 3 confirms, 1634 refused   44s
+  1700/2047  12 reports, 3 confirms, 1684 refused   45s
+  1750/2047  12 reports, 3 confirms, 1734 refused   45s
+  1800/2047  12 reports, 3 confirms, 1784 refused   45s
+  1850/2047  12 reports, 3 confirms, 1834 refused   46s
+  1900/2047  12 reports, 3 confirms, 1884 refused   46s
+  1950/2047  12 reports, 3 confirms, 1934 refused   47s
+  2000/2047  12 reports, 3 confirms, 1984 refused   47s
+  2047/2047  12 reports, 3 confirms, 2031 refused   48s
+
+contract refusals
+   1983  InsufficientFree
+     48  OwnerAlreadyContributed
+
+12 faults on chain
+  Pending        12
+
+car points at the end (stake stays locked until a fault closes)
+  car 0 PVS 1    balance 25  locked 25  free 0
+  car 1 PVS 4    balance 25  locked 25  free 0
+  car 2 PVS 7    balance 25  locked 25  free 0
+
+--repair skipped: nothing reached Confirmed
+
+  12 reports, 3 confirms, 2031 refused (of 2046 detections)
+  report   gas median 251640
+  confirm  gas median 151070
+  latency  median 1.90s  min 1.06s  max 2.03s
+
+  Nothing reached Confirmed: no fault collected 3 distinct owners.
+  Cars ran out of free points: each report or confirm locks a
+  stake until the fault closes, so a car can only back a few
+  unresolved faults at once.
+
+-> C:\Sawon\LLM\results\car_transactions.csv

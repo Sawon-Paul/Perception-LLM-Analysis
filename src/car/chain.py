@@ -4,14 +4,12 @@ Plan section 8. Nothing here hardcodes an address: everything is read from
 chain/deployments/besu.json, which the deploy script writes only after all
 seven wiring checks pass. Redeploy and this follows automatically.
 
-Gas is free on this chain, so cars hold no balance and never need one. That is
-the whole reason for the zero-gas genesis: a design where a vehicle must buy a
-native coin to file a report is unusable where cryptocurrency trading is
-illegal.
+Gas is free on this chain, so cars hold no balance and never need one.
 """
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -36,16 +34,61 @@ def load_deployment(network: str = "besu") -> dict:
 
 
 def load_abi(name: str) -> list:
-    """Read the ABI straight out of Hardhat's build output.
-
-    Keeping a second copy of the ABI in Python would drift the moment a
-    contract changes, and the drift shows up as a silent decoding failure
-    rather than an error.
-    """
+    """Read the ABI straight out of Hardhat's build output, so it never drifts."""
     p = ARTIFACTS / f"{name}.sol" / f"{name}.json"
     if not p.exists():
         raise SystemExit(f"{p} not found — run `npx hardhat compile` in chain/")
     return json.loads(p.read_text())["abi"]
+
+
+def error_table(abis: list[list]) -> dict[str, tuple[str, list[str], list[str]]]:
+    """Map 4-byte selector -> (error name, arg types, arg names), from every ABI.
+
+    Custom errors come back from the node as raw hex like 0x62b244c0...; this is
+    what turns that into InsufficientFree(have=0, need=5).
+    """
+    from web3 import Web3
+    out = {}
+    for abi in abis:
+        for e in abi:
+            if e.get("type") != "error":
+                continue
+            types = [i["type"] for i in e.get("inputs", [])]
+            names = [i.get("name") or f"arg{k}" for k, i in
+                     enumerate(e.get("inputs", []))]
+            sig = f"{e['name']}({','.join(types)})"
+            out["0x" + Web3.keccak(text=sig)[:4].hex().removeprefix("0x")] = (
+                e["name"], types, names)
+    return out
+
+
+def decode_revert(msg: str, table: dict) -> str:
+    """Best-effort readable form of a revert message."""
+    m = re.search(r"0x[0-9a-fA-F]{8,}", msg or "")
+    if m:
+        data = m.group(0)
+    else:
+        # some nodes report the revert data as a Python bytes literal
+        b = re.search(r"b'((?:[^'\\]|\\.)*)'", msg or "")
+        if not b:
+            return " ".join((msg or "").split())[:100] or "(no reason returned)"
+        import ast
+        data = "0x" + ast.literal_eval("b'" + b.group(1) + "'").hex()
+        if len(data) < 10:
+            return " ".join((msg or "").split())[:100]
+    hit = table.get(data[:10].lower())
+    if not hit:
+        return f"unknown error {data[:10]}"
+    name, types, names = hit
+    if not types:
+        return f"{name}()"
+    try:
+        from eth_abi import decode
+        vals = decode(types, bytes.fromhex(data[10:]))
+        return f"{name}(" + ", ".join(f"{n}={v}" for n, v in zip(names, vals)) + ")"
+    except Exception:                                          # noqa: BLE001
+        # the message is sometimes truncated; the name alone is still useful
+        return f"{name}(...)"
 
 
 class Chain:
@@ -57,10 +100,9 @@ class Chain:
         from web3.middleware import ExtraDataToPOAMiddleware
 
         self.dep = load_deployment(network)
-        url = rpc or f"http://127.0.0.1:8545"
+        url = rpc or "http://127.0.0.1:8545"
         self.w3 = Web3(Web3.HTTPProvider(url, request_kwargs={"timeout": 30}))
-        # QBFT puts consensus data in extraData, which exceeds what the default
-        # block formatter accepts; without this every block read raises.
+        # QBFT puts consensus data in extraData; without this block reads raise
         self.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         if not self.w3.is_connected():
             raise SystemExit(
@@ -74,9 +116,13 @@ class Chain:
             self.account = Account.from_key(private_key)
 
         self.c = {}
+        abis = []
         for name, addr in self.dep["contracts"].items():
+            abi = load_abi(name)
+            abis.append(abi)
             self.c[name] = self.w3.eth.contract(
-                address=self.w3.to_checksum_address(addr), abi=load_abi(name))
+                address=self.w3.to_checksum_address(addr), abi=abi)
+        self.errors = error_table(abis)
 
     @property
     def address(self) -> str:
@@ -85,30 +131,20 @@ class Chain:
         return self.account.address
 
     def dry_run(self, fn) -> str | None:
-        """Would this revert? Returns the reason, or None if it would succeed.
+        """Would this revert? Returns the decoded reason, or None if it would pass.
 
-        Checking first matters because a reverted transaction is still mined
-        and still returns a receipt \u2014 with status 0. Reading only the
-        receipt made failures look like successes, and a run reported 75
-        transactions when most of the confirmations had reverted.
+        A reverted transaction is still mined and still returns a receipt, with
+        status 0, so checking first is what keeps failures from being counted
+        as successes.
         """
-        from web3.exceptions import ContractLogicError
         try:
             fn.call({"from": self.address})
             return None
-        except ContractLogicError as e:
-            return str(e)
-        except Exception as e:                      # noqa: BLE001
-            return f"call failed: {e}"
+        except Exception as e:                                 # noqa: BLE001
+            return decode_revert(str(getattr(e, "data", "") or e), self.errors)
 
     def send(self, fn, gas: int = 2_000_000, check: bool = True) -> dict:
-        """Sign and send, then wait for the receipt.
-
-        Returns the receipt fields worth logging rather than the raw object,
-        because gas used and the two timestamps are what the thesis reports.
-
-        Raises on a reverted transaction rather than returning it quietly.
-        """
+        """Sign, send, wait. Raises if the transaction reverted on chain."""
         if self.account is None:
             raise RuntimeError("no key loaded")
         nonce = self.w3.eth.get_transaction_count(self.address)
@@ -123,18 +159,17 @@ class Chain:
         mined = time.time()
         if check and rcpt["status"] != 1:
             raise RuntimeError(
-                f"transaction reverted on chain (status 0), tx {h.hex()}, "
-                f"gas used {rcpt['gasUsed']}")
+                f"transaction reverted on chain (status 0), tx {h.hex()}")
         return {"tx_hash": h.hex(), "status": rcpt["status"],
                 "gas_used": rcpt["gasUsed"], "block": rcpt["blockNumber"],
                 "sent_at": round(sent, 3), "mined_at": round(mined, 3),
                 "latency_s": round(mined - sent, 3)}
 
-    def events(self, contract: str, event: str, rcpt_hash: str) -> list:
-        """Decode events from a transaction we just sent."""
-        r = self.w3.eth.get_transaction_receipt(rcpt_hash)
+    def events(self, contract: str, event: str, tx_hash: str) -> list:
+        from web3.logs import DISCARD
+        r = self.w3.eth.get_transaction_receipt(tx_hash)
         return list(getattr(self.c[contract].events, event)().process_receipt(
-            r, errors=__import__("web3").logs.DISCARD))
+            r, errors=DISCARD))
 
 
 def car_key_path(car_id: int) -> Path:
@@ -142,11 +177,7 @@ def car_key_path(car_id: int) -> Path:
 
 
 def load_or_create_key(car_id: int) -> dict:
-    """One key pair per car, kept out of git.
-
-    A car's key is its identity on the chain, so it has to persist between
-    runs; regenerating would orphan its registration and its reputation.
-    """
+    """One persistent key per car: the key is its identity and its reputation."""
     p = car_key_path(car_id)
     if p.exists():
         return json.loads(p.read_text())
@@ -159,22 +190,22 @@ def load_or_create_key(car_id: int) -> dict:
     return rec
 
 
-def admin_key() -> str:
-    """The deployer key, written to chain/besu/.env by besu/prepare.js."""
-    env = CHAIN_DIR / "besu" / ".env"
-    if not env.exists():
-        raise SystemExit(f"{env} not found — run node besu/prepare.js in chain/")
-    for line in env.read_text().splitlines():
-        if line.startswith("DEPLOYER_KEY="):
-            return line.split("=", 1)[1].strip()
-    raise SystemExit("DEPLOYER_KEY missing from chain/besu/.env")
-
-
-def role_key(role: str) -> str | None:
+def _env_value(key: str) -> str | None:
     env = CHAIN_DIR / "besu" / ".env"
     if not env.exists():
         return None
     for line in env.read_text().splitlines():
-        if line.startswith(f"{role}_KEY="):
+        if line.startswith(f"{key}="):
             return line.split("=", 1)[1].strip()
     return None
+
+
+def admin_key() -> str:
+    k = _env_value("DEPLOYER_KEY")
+    if not k:
+        raise SystemExit("DEPLOYER_KEY missing — run node besu/prepare.js in chain/")
+    return k
+
+
+def role_key(role: str) -> str | None:
+    return _env_value(f"{role}_KEY")
